@@ -84,6 +84,21 @@ def test_similar_neigh_distrib(data: pd.DataFrame, ref_data: pd.DataFrame, kl_th
     assert np.isfinite(kl_div) and kl_div < kl_threshold
 
 
-########################################################
-# Implement here test_row_count and test_price_range   #
-########################################################
+def test_row_count(data: pd.DataFrame) -> None:
+    """
+    The dataset should not be empty and should not be extremely large. 
+    This helps catch cases where we filtered everything out or pulled junk.
+    """
+    n_rows = data.shape[0]
+
+    #sanity range is >15000 rows, but not like millions
+    assert n_rows > 15000 
+    assert n_rows < 1_000_000
+
+def test_price_range(data: pd.DataFrame, min_price: float, max_price: float) -> None:
+    """
+    All rows should have a price within the expected min and max range.
+    This enforces the same rule we used in basic_cleaning. 
+    """
+    prices_ok = data["price"].between(min_price, max_price).all()
+    assert prices_ok, "Found prices outside the expected range"

@@ -1,8 +1,8 @@
+import os
 import json
 
 import mlflow
 import tempfile
-import os
 import wandb
 import hydra
 from omegaconf import DictConfig
@@ -75,10 +75,28 @@ def go(config: DictConfig):
             )
 
         if "data_check" in active_steps:
-            ##################
-            # Implement here #
-            ##################
-            pass
+            from mlflow import projects
+            
+            data_check_path = os.path.join(
+                get_original_cwd(),
+                "src",
+                "data_check"
+            )
+
+            _ = projects.run(
+                uri=data_check_path,
+                entry_point="main",
+                parameters={
+                    "csv": "clean_sample.csv:latest",
+                    "ref": "clean_sample.csv:reference",
+                    "kl_threshold": config["data_check"]["kl_threshold"],
+                    "min_price": config["etl"]["min_price"],
+                    "max_price": config["etl"]["max_price"],
+                },
+                env_manager="conda",
+            )
+           
+
 
         if "data_split" in active_steps:
             ##################
