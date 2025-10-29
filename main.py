@@ -6,6 +6,7 @@ import os
 import wandb
 import hydra
 from omegaconf import DictConfig
+from hydra.utils import get_original_cwd
 
 _steps = [
     "download",
@@ -51,10 +52,27 @@ def go(config: DictConfig):
             )
 
         if "basic_cleaning" in active_steps:
-            ##################
-            # Implement here #
-            ##################
-            pass
+            from mlflow import projects 
+
+            basic_cleaning_path = os.path.join(
+                get_original_cwd(),
+                "src",
+                "basic_cleaning"
+            )
+
+            _ = projects.run(
+                uri=basic_cleaning_path,
+                entry_point ="main",
+                parameters={
+                    "input_artifact": "sample.csv:latest",
+                    "output_artifact": "clean_sample.csv",
+                    "output_type":"clean_sample",
+                    "output_description": "Data after basic cleaning",
+                    "min_price": config["etl"]["min_price"],
+                    "max_price": config["etl"]["max_price"],
+                },
+                env_manager="conda",
+            )
 
         if "data_check" in active_steps:
             ##################
