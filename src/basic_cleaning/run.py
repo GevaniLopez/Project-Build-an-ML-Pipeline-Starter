@@ -14,24 +14,47 @@ logger = logging.getLogger()
 # DO NOT MODIFY
 def go(args):
 
-    run = wandb.init(job_type="basic_cleaning")
+    run = wandb.init(project="nyc_airbnb", group="cleaning", job_type="basic_cleaning", save_code=True)
     run.config.update(args)
 
     # Download input artifact. This will also log that this script is using this
-    
-    run = wandb.init(project="nyc_airbnb", group="cleaning", save_code=True)
     artifact_local_path = run.use_artifact(args.input_artifact).file()
     df = pd.read_csv(artifact_local_path)
-    # Drop outliers
-    min_price = args.min_price
-    max_price = args.max_price
-    idx = df['longitude'].between(-74.25, -73.50) & df['latitude'].between(40.5, 41.2)
-    df = df[idx].copy()
-    # Convert last_review to datetime
-    df['last_review'] = pd.to_datetime(df['last_review'])
+    
+    # NYC bounding box (required for sample2.csv “successful failure” step)
+    df = df[
+        df["longitude"].between(-74.25, -73.50)
+        & df["latitude"].between(40.5, 41.2)
+    ].copy()
 
-    idx = df['longitude'].between(-74.25, -73.50) & df['latitude'].between(40.5, 41.2)
-    df = df[idx].copy()
+    # Coerce price to numeric (handles "$1,200", commas, stray spaces)
+    if not pd.api.types.is_numeric_dtype(df["price"]):
+        df["price"] = (
+            df["price"]
+            .astype(str)
+            .str.replace(r"[^\d.]+", "", regex=True)  # keep digits and dot
+            .replace("", "0")
+            .astype(float)
+        )
+
+    # DEBUG: min/max before filtering
+    logger.info(
+        "Before price filter: rows=%s  min=%.3f  max=%.3f",
+        df.shape[0], df["price"].min(), df["price"].max()
+    )
+
+    # Enforce price bounds from args 
+    df = df[df["price"].between(args.min_price, args.max_price, inclusive="both")].copy()
+
+    # DEBUG: min/max after filtering (should clamp to [min_price, max_price])
+    logger.info(
+        "After price filter: rows=%s  min=%.3f  max=%.3f",
+        df.shape[0], df["price"].min(), df["price"].max()
+    )
+
+    # Robust date parsing (avoid errors on weird strings/missing values)
+    df["last_review"] = pd.to_datetime(df["last_review"], errors="coerce")
+    
     # Save the cleaned file
     df.to_csv('clean_sample.csv',index=False)
 
