@@ -15,7 +15,16 @@ logger = logging.getLogger()
 def go(args):
 
     run = wandb.init(project="nyc_airbnb", group="cleaning", job_type="basic_cleaning", save_code=True)
-    run.config.update(args)
+    run.config.update(
+        {
+            "input_artifact": args.input_artifact,
+            "output_artifact": args.output_artifact,
+            "output_type": args.output_type,
+            "output_description": args.output_description,
+            "min_price": args.min_price,
+            "max_price": args.max_price,
+        }
+    )
 
     # Download input artifact. This will also log that this script is using this
     artifact_local_path = run.use_artifact(args.input_artifact).file()
@@ -54,7 +63,7 @@ def go(args):
 
     # Robust date parsing (avoid errors on weird strings/missing values)
     df["last_review"] = pd.to_datetime(df["last_review"], errors="coerce")
-    
+
     # Save the cleaned file
     df.to_csv('clean_sample.csv',index=False)
 
