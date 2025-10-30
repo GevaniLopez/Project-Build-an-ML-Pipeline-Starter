@@ -48,6 +48,12 @@ def go(args):
         rf_config = json.load(fp)
     run.config.update(rf_config)
 
+    wandb.config.update({
+        "max_depth": rf_config.get("max_depth"),
+        "n_estimators": rf_config.get("n_estimators"),
+        "random_state": args.random_seed,
+    }, allow_val_change=True)
+
     # Fix the random seed for the Random Forest, so we get reproducible results
     rf_config['random_state'] = args.random_seed
 
@@ -71,10 +77,7 @@ def go(args):
     # Then fit it to the X_train, y_train data
     logger.info("Fitting")
 
-    ######################################
-    # Fit the pipeline sk_pipe by calling the .fit method on X_train and y_train
-    # YOUR CODE HERE
-    ######################################
+    sk_pipe.fit(X_train, y_train)
 
     # Compute r2 and MAE
     logger.info("Scoring")
@@ -86,27 +89,31 @@ def go(args):
     logger.info(f"Score: {r_squared}")
     logger.info(f"MAE: {mae}")
 
+    # Log metrics as metrics and summary 
+    wandb.log({"mae": float(mae), "r2": float(r_squared)})
+    run.summary["mae"] = float(mae)
+    run.summary["r2"]  = float(r_squared)
+
     logger.info("Exporting model")
 
     # Save model package in the MLFlow sklearn format
     if os.path.exists("random_forest_dir"):
         shutil.rmtree("random_forest_dir")
 
-    ######################################
-    # Save the sk_pipe pipeline as a mlflow.sklearn model in the directory "random_forest_dir"
-    # HINT: use mlflow.sklearn.save_model
+
     mlflow.sklearn.save_model(
-        # YOUR CODE HERE
+        sk_pipe,
+        "random_forest_dir",
         input_example = X_train.iloc[:5]
     )
-    ######################################
+
 
 
     # Upload the model we just exported to W&B
     artifact = wandb.Artifact(
         args.output_artifact,
         type = 'model_export',
-        description = 'Trained ranfom forest artifact',
+        description = 'Trained random forest artifact',
         metadata = rf_config
     )
     artifact.add_dir('random_forest_dir')
@@ -115,12 +122,12 @@ def go(args):
     # Plot feature importance
     fig_feat_imp = plot_feature_importance(sk_pipe, processed_features)
 
-    ######################################
-    # Here we save variable r_squared under the "r2" key
+  
+    # Save metrics to W&B summary
     run.summary['r2'] = r_squared
-    # Now save the variable mae under the key "mae".
-    # YOUR CODE HERE
-    ######################################
+
+    run.summary['mae'] = mae
+
 
     # Upload to W&B the feture importance visualization
     run.log(
@@ -157,14 +164,15 @@ def get_inference_pipeline(rf_config, max_tfidf_features):
     # (nor during training). That is not true for neighbourhood_group
     ordinal_categorical_preproc = OrdinalEncoder()
 
-    ######################################
+
     # Build a pipeline with two steps:
     # 1 - A SimpleImputer(strategy="most_frequent") to impute missing values
     # 2 - A OneHotEncoder() step to encode the variable
     non_ordinal_categorical_preproc = make_pipeline(
-        # YOUR CODE HERE
+        SimpleImputer(strategy="most_frequent"),
+        OneHotEncoder(handle_unknown="ignore")
     )
-    ######################################
+
 
     # Let's impute the numerical columns to make sure we can handle missing values
     # (note that we do not scale because the RF algorithm does not need that)
@@ -217,7 +225,7 @@ def get_inference_pipeline(rf_config, max_tfidf_features):
     # Create random forest
     random_forest = RandomForestRegressor(**rf_config)
 
-    ######################################
+
     # Create the inference pipeline. The pipeline must have 2 steps: 
     # 1 - a step called "preprocessor" applying the ColumnTransformer instance that we saved in the `preprocessor` variable
     # 2 - a step called "random_forest" with the random forest instance that we just saved in the `random_forest` variable.
@@ -225,12 +233,13 @@ def get_inference_pipeline(rf_config, max_tfidf_features):
 
     sk_pipe = Pipeline(
         steps =[
-        # YOUR CODE HERE
+            ("preprocessor", preprocessor),
+            ("random_forest", random_forest),
         ]
     )
 
     return sk_pipe, processed_features
-    ######################################
+
 
 
 if __name__ == "__main__":
