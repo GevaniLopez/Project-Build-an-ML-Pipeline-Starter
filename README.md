@@ -179,3 +179,42 @@ Please, make sure all steps are using **the same** python version and that you h
 ## License
 
 [License](LICENSE.txt)
+
+
+# Project Summary 
+This project builds an end to end ML pipeline to predict NYC Airbnb prices. The pipeline handles data ingestion, cleaning, validation, model training, hyperparemeter tuning, and release automation using MLflow and W&B. 
+
+# Model Performance 
+The mean absolute error (MAE) was approximately 34, and the R^2 score was approximately 0.55. The Random Forest model achieved around 34 MAE on held out data. What this means is that the predictions are within 34 dollars of actual nightly price. It was not perfect, but this is reasonable for noisy real-estate pricing data. 
+
+# Best Model Hyperparameters
+The n_estimators had a value of 200, and the max_depth was 50. These values consistently produced the lowest MAE across W&B sweeps. 
+
+# Release info / LINKS 
+Github Release: v 1.0.6 : https://github.com/GevaniLopez/Project-Build-an-ML-Pipeline-Starter/tree/1.0.6
+W&B Project: https://wandb.ai/gevanilopez-western-governors-university/nyc_airbnb?nw=nwusergevanilopez
+
+### To run the pipeline: 
+mlflow run . 
+
+### To run pipeline with different sample:
+mlflow run . -P "hydra_options=etl.sample='sample2.csv'"
+
+# Learned lessons 
+- MLflow and Hydra config structure prevents hardcoding pipeline settings
+
+- W&B sweeps made hyperparameter tuning efficient
+
+- Tests caught unexpected outliers with price and geolocation ranges (good failure part)
+
+- updating component conda.yml files was necessary to maintain version consistency across runs
+
+
+## challenges but fixed it 
+ - Geolocation test broke pipeline -> added latitude and longitude mask
+
+ - Price test failed on new data sample -> added price filter in cleaning step 
+
+ - two W&B runs initialized -> Cleaned up run.py to use single wandb.init()
+
+ 
